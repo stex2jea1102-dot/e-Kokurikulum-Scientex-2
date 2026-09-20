@@ -1,0 +1,15 @@
+{
+  "name": "STEX2 e-Kokurikulum",
+  "short_name": "STEX2 e-KOKU",
+  "description": "Pengurusan Kokurikulum SMK Taman Scientex 2",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#0b1f44",
+  "orientation": "portrait-primary",
+  "icons": [
+    {"src":"assets/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},
+    {"src":"assets/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
+  ]
+}

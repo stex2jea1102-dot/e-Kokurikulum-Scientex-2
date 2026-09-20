@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ms">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1f44">
+  <meta name="description" content="STEX2 e-Kokurikulum — Pengurusan Kokurikulum SMK Taman Scientex 2">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/icon-192.png">
+  <link rel="apple-touch-icon" href="assets/icon-192.png">
+  <title>STEX2 e-Kokurikulum</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Montserrat:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="toast" class="toast" aria-live="polite"></div>
+
+  <section id="authScreen" class="auth-screen">
+    <div class="auth-card">
+      <div class="brand-mark">STEX<span>2</span></div>
+      <p class="eyebrow">SMK TAMAN SCIENTEX 2 · JEA1102</p>
+      <h1>e-Kokurikulum</h1>
+      <p class="auth-subtitle">Satu platform untuk pengurusan unit, kehadiran, OPR, takwim, pencapaian dan analisis kokurikulum.</p>
+      <form id="loginForm" class="stack-form">
+        <label>Email guru<input id="loginEmail" type="email" autocomplete="username" required placeholder="nama@sekolah.edu.my"></label>
+        <label>Kata laluan<input id="loginPassword" type="password" autocomplete="current-password" required placeholder="••••••••"></label>
+        <button class="btn primary wide" type="submit">Log masuk</button>
+      </form>
+      <p class="small muted">Akaun guru dicipta melalui Supabase Auth. Data murid tidak dibuka kepada pengguna awam.</p>
+    </div>
+  </section>
+
+  <div id="appShell" class="app-shell hidden">
+    <aside class="sidebar" id="sidebar">
+      <div class="side-brand">
+        <div class="brand-badge">S2</div>
+        <div><strong>STEX2</strong><span>e-Kokurikulum</span></div>
+      </div>
+      <nav class="nav">
+        <button class="nav-item active" data-view="dashboard"><span>⌂</span> Dashboard</button>
+        <button class="nav-item" data-view="takwin"><span>▣</span> Takwim</button>
+        <button class="nav-item" data-view="units"><span>◫</span> Pengurusan Unit</button>
+        <button class="nav-item" data-view="opr"><span>▤</span> Jana OPR</button>
+        <button class="nav-item" data-view="attendance"><span>✓</span> Kehadiran</button>
+        <button class="nav-item" data-view="houses"><span>⬢</span> Rumah Sukan</button>
+        <button class="nav-item" data-view="achievements"><span>★</span> Pencapaian Murid</button>
+        <button class="nav-item" data-view="master"><span>☷</span> Master Data</button>
+        <button class="nav-item" data-view="analysis"><span>◈</span> Analisis</button>
+      </nav>
+      <div class="side-footer"><span class="dot"></span> Sambungan awan aktif</div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button id="menuToggle" class="icon-btn mobile-only">☰</button>
+        <div>
+          <div class="crumb">STEX2 / <span id="viewTitle">Dashboard</span></div>
+          <h2 id="pageTitle">Dashboard Kokurikulum</h2>
+        </div>
+        <div class="top-actions">
+          <button id="installBtn" class="btn ghost">Pasang Aplikasi</button>
+          <div class="profile-menu"><span id="userEmail">Guru</span><button id="logoutBtn" class="btn ghost">Log keluar</button></div>
+        </div>
+      </header>
+
+      <section id="view-dashboard" class="view active-view">
+        <div class="hero">
+          <div><p class="eyebrow">SELAMAT DATANG</p><h3>Pengurusan Kokurikulum STEX2</h3><p>Masukkan data sekali, guna semula untuk laporan, pemantauan dan analisis pentadbir.</p></div>
+          <div class="hero-chip">JEA1102</div>
+        </div>
+        <div class="stat-grid" id="dashboardStats"></div>
+        <div class="content-grid two">
+          <section class="card"><div class="card-head"><div><h3>OPR & Pemantauan</h3><p class="muted">Perjumpaan yang belum mempunyai laporan.</p></div><button class="btn secondary" data-go="opr">Lihat semua</button></div><div id="pendingOpr" class="list"></div></section>
+          <section class="card"><div class="card-head"><div><h3>Takwim Terdekat</h3><p class="muted">Aktiviti kokurikulum akan datang.</p></div><button class="btn secondary" data-go="takwin">Buka takwim</button></div><div id="upcomingCalendar" class="list"></div></section>
+        </div>
+      </section>
+
+      <section id="view-takwin" class="view"><div class="section-head"><div><p class="eyebrow">KALENDAR</p><h3>Takwim Kokurikulum</h3><p class="muted">Simpan perjumpaan, kejohanan, program dan tarikh penting sekolah.</p></div><button id="addCalendarBtn" class="btn primary">+ Aktiviti</button></div><div class="card"><div id="calendarList" class="table-wrap"></div></div></section>
+
+      <section id="view-units" class="view"><div class="section-head"><div><p class="eyebrow">PENGURUSAN UNIT</p><h3>Unit Kokurikulum</h3><p class="muted">Unit Uniform, Kelab & Persatuan serta Sukan & Permainan.</p></div><button id="addUnitBtn" class="btn primary">+ Unit</button></div><div class="filter-row"><select id="unitTypeFilter"><option value="">Semua kategori</option><option value="Unit Uniform">Unit Uniform</option><option value="Kelab & Persatuan">Kelab & Persatuan</option><option value="Sukan & Permainan">Sukan & Permainan</option></select><input id="unitSearch" placeholder="Cari nama unit..."></div><div id="unitsGrid" class="unit-grid"></div></section>
+
+      <section id="view-opr" class="view"><div class="section-head"><div><p class="eyebrow">ONE PAGE REPORT</p><h3>Jana & Pantau OPR</h3><p class="muted">Jana laporan aktiviti yang kemas dan muat turun sebagai PDF.</p></div><button id="newOprBtn" class="btn primary">+ Jana OPR</button></div><div class="card"><div id="oprList" class="table-wrap"></div></div></section>
+
+      <section id="view-attendance" class="view"><div class="section-head"><div><p class="eyebrow">KEHADIRAN</p><h3>Kehadiran Perjumpaan</h3><p class="muted">Rekod kehadiran murid dan guru bagi setiap perjumpaan unit.</p></div><button id="newMeetingBtn" class="btn primary">+ Perjumpaan</button></div><div class="card"><div id="meetingList" class="table-wrap"></div></div></section>
+
+      <section id="view-houses" class="view"><div class="section-head"><div><p class="eyebrow">UNIT SUKAN</p><h3>Rumah Sukan</h3><p class="muted">Senarai murid dan guru bagi setiap rumah sukan.</p></div><button id="addHouseBtn" class="btn primary">+ Rumah Sukan</button></div><div id="housesGrid" class="unit-grid"></div></section>
+
+      <section id="view-achievements" class="view"><div class="section-head"><div><p class="eyebrow">PAJSK / PENCAPAIAN</p><h3>Rekod Pencapaian Murid</h3><p class="muted">Rekod penyertaan, peringkat, jawatan dan pencapaian murid.</p></div><button id="addAchievementBtn" class="btn primary">+ Rekod</button></div><div class="card"><div id="achievementList" class="table-wrap"></div></div></section>
+
+      <section id="view-master" class="view"><div class="section-head"><div><p class="eyebrow">MASTER DATA</p><h3>Data Murid & Guru</h3><p class="muted">Data boleh ditambah, diubah, dipadam atau disusun semula bila-bila masa.</p></div></div><div class="tabs"><button class="tab active" data-master="murid">Murid</button><button class="tab" data-master="guru">Guru</button></div><div class="card"><div id="masterList" class="table-wrap"></div></div></section>
+
+      <section id="view-analysis" class="view"><div class="section-head"><div><p class="eyebrow">PENTADBIR</p><h3>Analisis Kokurikulum</h3><p class="muted">Ringkasan data untuk pemantauan dan tindakan susulan.</p></div><button id="refreshAnalysisBtn" class="btn ghost">↻ Refresh</button></div><div id="analysisBody" class="analysis-grid"></div></section>
+    </main>
+  </div>
+
+  <dialog id="modal"><div id="modalContent"></div></dialog>
+  <div id="printRoot"></div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(console.error));
+  </script>
+</body>
+</html>
