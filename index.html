@@ -83,6 +83,35 @@
     </div>
 
 
+    <!-- INVITATION / SET PASSWORD V12 -->
+    <div id="invite-overlay-v12" class="hidden fixed inset-0 z-[100002] bg-slate-100/95 items-center justify-center p-4 overflow-y-auto">
+        <div class="auth-card w-full max-w-md">
+            <div class="text-center mb-6">
+                <div class="w-20 h-20 mx-auto mb-3 bg-white rounded-full flex items-center justify-center p-2 shadow-lg border border-gray-200">
+                    <img src="https://lh3.googleusercontent.com/d/1mgH2fJXv_eD72-sUyOcmrZb392nykt5y" alt="Logo SMK Taman Scientex 2" class="w-full h-full object-contain" onerror="this.onerror=null;this.src='https://placehold.co/100x100/1A237E/ffffff?text=STEX2';">
+                </div>
+                <h1 class="text-xl font-bold text-primary">Aktifkan Akaun Guru</h1>
+                <p class="text-sm text-gray-500">e-Kokurikulum SMK Taman Scientex 2</p>
+                <p class="text-xs text-gray-400 mt-1">Tetapkan kata laluan untuk melengkapkan akaun anda.</p>
+            </div>
+            <div id="invite-email-v12" class="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-sm text-blue-800 mb-4"></div>
+            <form id="invite-password-form-v12" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Kata Laluan Baharu</label>
+                    <input id="invite-password-v12" type="password" minlength="8" autocomplete="new-password" required class="w-full border border-gray-300 rounded-xl px-4 py-3" placeholder="Minimum 8 aksara">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Sahkan Kata Laluan</label>
+                    <input id="invite-password-confirm-v12" type="password" minlength="8" autocomplete="new-password" required class="w-full border border-gray-300 rounded-xl px-4 py-3" placeholder="Masukkan semula kata laluan">
+                </div>
+                <div id="invite-msg-v12" class="hidden text-sm rounded-xl px-4 py-3"></div>
+                <button id="invite-submit-v12" type="submit" class="w-full bg-primary text-white font-bold rounded-xl px-4 py-3">
+                    <i class="fas fa-key mr-2"></i> Aktifkan Akaun
+                </button>
+            </form>
+        </div>
+    </div>
+
     <!-- Mobile Header Bar -->
     <div class="md:hidden bg-primary text-white p-4 flex justify-between items-center z-20 shadow-md">
         <div class="flex items-center gap-2">
@@ -1740,7 +1769,13 @@
         // Konfigurasi Supabase Rasmi Anda
         const SUPABASE_URL = 'https://yjqdmbkxdiyokzmntaiz.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlqcWRtYmt4ZGl5b2t6bW50YWl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5MTI4NTcsImV4cCI6MjEwNTQ4ODg1N30.Js4ed-ed2IT2p33n8Lg42lgZ2kIyX4SBCtNiTq9yj7w';
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          auth: {
+            autoRefreshToken: true,
+            persistSession: true,
+            detectSessionInUrl: true
+          }
+        });
 
         let masterMuridList = [];
 
@@ -4694,6 +4729,113 @@ renderModulPAJSK=async function(){await _renderModulPAJSKBaseV7();renderTablePAJ
 
 <script>
 // ============================================================
+// V13 — INVITATION / SET PASSWORD FLOW
+// Handles both Supabase implicit invite callbacks (hash tokens) and
+// token_hash callbacks, then shows the set-password screen before normal login.
+let inviteFlowV12 = false;
+function getInviteParamsV13(){
+  const hash=(window.location.hash||'').replace(/^#/, '');
+  const qHash=new URLSearchParams(hash);
+  const qSearch=new URLSearchParams(window.location.search||'');
+  return {
+    type: qHash.get('type') || qSearch.get('type') || '',
+    tokenHash: qSearch.get('token_hash') || qHash.get('token_hash') || '',
+    code: qSearch.get('code') || '',
+    accessToken: qHash.get('access_token') || '',
+    refreshToken: qHash.get('refresh_token') || ''
+  };
+}
+function isInviteLinkV12(){
+  const p=getInviteParamsV13();
+  return p.type==='invite' || !!p.tokenHash;
+}
+function showInviteOverlayV12(user){
+  inviteFlowV12=true;
+  document.getElementById('auth-overlay')?.classList.add('hidden');
+  document.body.classList.remove('auth-locked');
+  document.getElementById('invite-overlay-v12')?.classList.remove('hidden');
+  document.getElementById('invite-overlay-v12')?.classList.add('flex');
+  const e=document.getElementById('invite-email-v12');
+  if(e) e.innerHTML='<b>Email:</b> '+escapeHtml(user?.email||'');
+}
+function hideInviteOverlayV12(){
+  document.getElementById('invite-overlay-v12')?.classList.add('hidden');
+  document.getElementById('invite-overlay-v12')?.classList.remove('flex');
+}
+function inviteMsgV12(text,ok=false){
+  const el=document.getElementById('invite-msg-v12'); if(!el)return;
+  el.className=(ok?'bg-green-50 text-green-700 border border-green-200':'bg-red-50 text-red-700 border border-red-200')+' text-sm rounded-xl px-4 py-3';
+  el.textContent=text;
+}
+async function submitInvitePasswordV12(e){
+  e.preventDefault();
+  const p=document.getElementById('invite-password-v12')?.value||'';
+  const c=document.getElementById('invite-password-confirm-v12')?.value||'';
+  const btn=document.getElementById('invite-submit-v12');
+  if(p.length<8){inviteMsgV12('Kata laluan mestilah sekurang-kurangnya 8 aksara.');return;}
+  if(p!==c){inviteMsgV12('Kata laluan tidak sepadan.');return;}
+  if(!currentAuthUserV8){inviteMsgV12('Sesi invitation tidak ditemui. Sila buka semula email jemputan yang terbaru.');return;}
+  btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin mr-2"></i> Menetapkan kata laluan...';
+  try{
+    const {error}=await supabaseClient.auth.updateUser({password:p});
+    if(error)throw error;
+    inviteMsgV12('Akaun berjaya diaktifkan. Anda akan dibawa ke halaman log masuk.',true);
+    await supabaseClient.auth.signOut();
+    currentAuthUserV8=null; currentProfileV8=null; authBootedV8=false; inviteFlowV12=false;
+    setTimeout(()=>{
+      hideInviteOverlayV12();
+      authApplyProfileV8();
+      window.history.replaceState({},document.title,window.location.pathname+window.location.search);
+      window.location.hash='';
+    },900);
+  }catch(err){inviteMsgV12(err?.message||'Gagal menetapkan kata laluan.');}
+  finally{btn.disabled=false;btn.innerHTML='<i class="fas fa-key mr-2"></i> Aktifkan Akaun';}
+}
+async function processInviteCallbackV13(){
+  const params=getInviteParamsV13();
+  const inviteCandidate = params.type==='invite' || !!params.tokenHash;
+  if(!inviteCandidate) return false;
+
+  try{
+    // Some email templates redirect with token_hash; verify it explicitly.
+    if(params.tokenHash && !currentAuthUserV8){
+      const {data,error}=await supabaseClient.auth.verifyOtp({
+        token_hash: params.tokenHash,
+        type: 'invite'
+      });
+      if(error) throw error;
+      currentAuthUserV8=data?.user || data?.session?.user || null;
+    }
+
+    // If the callback contains a PKCE code, exchange it. Invite-by-email normally
+    // uses the non-PKCE flow, but handling it here makes the callback robust.
+    if(params.code && !currentAuthUserV8){
+      const {data,error}=await supabaseClient.auth.exchangeCodeForSession(params.code);
+      if(error) throw error;
+      currentAuthUserV8=data?.user || data?.session?.user || null;
+    }
+
+    // Allow the Supabase client a moment to process implicit-flow hash tokens.
+    if(!currentAuthUserV8){
+      const {data,error}=await supabaseClient.auth.getSession();
+      if(error) throw error;
+      currentAuthUserV8=data?.session?.user || null;
+    }
+
+    if(currentAuthUserV8){
+      showInviteOverlayV12(currentAuthUserV8);
+      return true;
+    }
+
+    authSetErrorV8('Pautan jemputan diterima tetapi sesi akaun tidak dapat dibuka. Sila klik jemputan terbaru dalam email.');
+    return false;
+  }catch(err){
+    console.error('Invite callback error',err);
+    authSetErrorV8(err?.message||'Pautan jemputan tidak dapat diproses. Sila gunakan email jemputan yang terbaru.');
+    return false;
+  }
+}
+
 // AUTH V8 — SUPABASE AUTH + PROFIL PENGGUNA
 // ============================================================
 let currentAuthUserV8 = null;
@@ -4785,14 +4927,31 @@ async function logoutV8(){
 window.logoutV8=logoutV8;
 document.addEventListener('DOMContentLoaded',async()=>{
   document.getElementById('auth-login-form')?.addEventListener('submit',handleLoginV8);
+  document.getElementById('invite-password-form-v12')?.addEventListener('submit',submitInvitePasswordV12);
+  const inviteLink=isInviteLinkV12();
   try{
+    // First let Supabase process any access/refresh tokens in the URL, then
+    // explicitly handle invite/token_hash callbacks.
     const {data}=await supabaseClient.auth.getSession();
     currentAuthUserV8=data?.session?.user||null;
-    if(currentAuthUserV8){ await loadCurrentProfileV8(); authApplyProfileV8(); applyRolePermissionsV9(); await bootAuthenticatedAppV8(); }
-    else authApplyProfileV8();
-  }catch(err){ console.error('Auth session error',err); authApplyProfileV8(); }
+
+    if(inviteLink){
+      const handled=await processInviteCallbackV13();
+      if(handled) return;
+    }
+
+    if(currentAuthUserV8){
+      await loadCurrentProfileV8(); authApplyProfileV8(); applyRolePermissionsV9(); await bootAuthenticatedAppV8();
+    } else authApplyProfileV8();
+  }catch(err){
+    console.error('Auth session error',err);
+    if(inviteLink) authSetErrorV8(err?.message||'Pautan jemputan tidak dapat diproses. Sila gunakan email jemputan yang terbaru.');
+    authApplyProfileV8();
+  }
   supabaseClient.auth.onAuthStateChange(async(_event,session)=>{
     currentAuthUserV8=session?.user||null;
+    const inviteNow=isInviteLinkV12();
+    if((inviteFlowV12 || inviteNow) && session?.user){ showInviteOverlayV12(session.user); return; }
     if(!currentAuthUserV8){currentProfileV8=null;authBootedV8=false;authApplyProfileV8();return;}
     try{await loadCurrentProfileV8();authApplyProfileV8();applyRolePermissionsV9();await bootAuthenticatedAppV8();}
     catch(e){authSetErrorV8(e.message||'Profil pengguna tidak dapat dibaca.');await supabaseClient.auth.signOut();}
@@ -4930,77 +5089,5 @@ document.getElementById('add-user-form-v11')?.addEventListener('submit',submitAd
 window.openAddUserV11=openAddUserV11;
 window.closeAddUserV11=closeAddUserV11;
 </script>
-</body>
-</html>  <div id="appShell" class="app-shell hidden">
-    <aside class="sidebar" id="sidebar">
-      <div class="side-brand">
-        <div class="brand-badge">S2</div>
-        <div><strong>STEX2</strong><span>e-Kokurikulum</span></div>
-      </div>
-      <nav class="nav">
-        <button class="nav-item active" data-view="dashboard"><span>⌂</span> Dashboard</button>
-        <button class="nav-item" data-view="takwin"><span>▣</span> Takwim</button>
-        <button class="nav-item" data-view="units"><span>◫</span> Pengurusan Unit</button>
-        <button class="nav-item" data-view="opr"><span>▤</span> Jana OPR</button>
-        <button class="nav-item" data-view="attendance"><span>✓</span> Kehadiran</button>
-        <button class="nav-item" data-view="houses"><span>⬢</span> Rumah Sukan</button>
-        <button class="nav-item" data-view="achievements"><span>★</span> Pencapaian Murid</button>
-        <button class="nav-item" data-view="master"><span>☷</span> Master Data</button>
-        <button class="nav-item" data-view="analysis"><span>◈</span> Analisis</button>
-      </nav>
-      <div class="side-footer"><span class="dot"></span> Sambungan awan aktif</div>
-    </aside>
-
-    <main class="main">
-      <header class="topbar">
-        <button id="menuToggle" class="icon-btn mobile-only">☰</button>
-        <div>
-          <div class="crumb">STEX2 / <span id="viewTitle">Dashboard</span></div>
-          <h2 id="pageTitle">Dashboard Kokurikulum</h2>
-        </div>
-        <div class="top-actions">
-          <button id="installBtn" class="btn ghost">Pasang Aplikasi</button>
-          <div class="profile-menu"><span id="userEmail">Guru</span><button id="logoutBtn" class="btn ghost">Log keluar</button></div>
-        </div>
-      </header>
-
-      <section id="view-dashboard" class="view active-view">
-        <div class="hero">
-          <div><p class="eyebrow">SELAMAT DATANG</p><h3>Pengurusan Kokurikulum STEX2</h3><p>Masukkan data sekali, guna semula untuk laporan, pemantauan dan analisis pentadbir.</p></div>
-          <div class="hero-chip">JEA1102</div>
-        </div>
-        <div class="stat-grid" id="dashboardStats"></div>
-        <div class="content-grid two">
-          <section class="card"><div class="card-head"><div><h3>OPR & Pemantauan</h3><p class="muted">Perjumpaan yang belum mempunyai laporan.</p></div><button class="btn secondary" data-go="opr">Lihat semua</button></div><div id="pendingOpr" class="list"></div></section>
-          <section class="card"><div class="card-head"><div><h3>Takwim Terdekat</h3><p class="muted">Aktiviti kokurikulum akan datang.</p></div><button class="btn secondary" data-go="takwin">Buka takwim</button></div><div id="upcomingCalendar" class="list"></div></section>
-        </div>
-      </section>
-
-      <section id="view-takwin" class="view"><div class="section-head"><div><p class="eyebrow">KALENDAR</p><h3>Takwim Kokurikulum</h3><p class="muted">Simpan perjumpaan, kejohanan, program dan tarikh penting sekolah.</p></div><button id="addCalendarBtn" class="btn primary">+ Aktiviti</button></div><div class="card"><div id="calendarList" class="table-wrap"></div></div></section>
-
-      <section id="view-units" class="view"><div class="section-head"><div><p class="eyebrow">PENGURUSAN UNIT</p><h3>Unit Kokurikulum</h3><p class="muted">Unit Uniform, Kelab & Persatuan serta Sukan & Permainan.</p></div><button id="addUnitBtn" class="btn primary">+ Unit</button></div><div class="filter-row"><select id="unitTypeFilter"><option value="">Semua kategori</option><option value="Unit Uniform">Unit Uniform</option><option value="Kelab & Persatuan">Kelab & Persatuan</option><option value="Sukan & Permainan">Sukan & Permainan</option></select><input id="unitSearch" placeholder="Cari nama unit..."></div><div id="unitsGrid" class="unit-grid"></div></section>
-
-      <section id="view-opr" class="view"><div class="section-head"><div><p class="eyebrow">ONE PAGE REPORT</p><h3>Jana & Pantau OPR</h3><p class="muted">Jana laporan aktiviti yang kemas dan muat turun sebagai PDF.</p></div><button id="newOprBtn" class="btn primary">+ Jana OPR</button></div><div class="card"><div id="oprList" class="table-wrap"></div></div></section>
-
-      <section id="view-attendance" class="view"><div class="section-head"><div><p class="eyebrow">KEHADIRAN</p><h3>Kehadiran Perjumpaan</h3><p class="muted">Rekod kehadiran murid dan guru bagi setiap perjumpaan unit.</p></div><button id="newMeetingBtn" class="btn primary">+ Perjumpaan</button></div><div class="card"><div id="meetingList" class="table-wrap"></div></div></section>
-
-      <section id="view-houses" class="view"><div class="section-head"><div><p class="eyebrow">UNIT SUKAN</p><h3>Rumah Sukan</h3><p class="muted">Senarai murid dan guru bagi setiap rumah sukan.</p></div><button id="addHouseBtn" class="btn primary">+ Rumah Sukan</button></div><div id="housesGrid" class="unit-grid"></div></section>
-
-      <section id="view-achievements" class="view"><div class="section-head"><div><p class="eyebrow">PAJSK / PENCAPAIAN</p><h3>Rekod Pencapaian Murid</h3><p class="muted">Rekod penyertaan, peringkat, jawatan dan pencapaian murid.</p></div><button id="addAchievementBtn" class="btn primary">+ Rekod</button></div><div class="card"><div id="achievementList" class="table-wrap"></div></div></section>
-
-      <section id="view-master" class="view"><div class="section-head"><div><p class="eyebrow">MASTER DATA</p><h3>Data Murid & Guru</h3><p class="muted">Data boleh ditambah, diubah, dipadam atau disusun semula bila-bila masa.</p></div></div><div class="tabs"><button class="tab active" data-master="murid">Murid</button><button class="tab" data-master="guru">Guru</button></div><div class="card"><div id="masterList" class="table-wrap"></div></div></section>
-
-      <section id="view-analysis" class="view"><div class="section-head"><div><p class="eyebrow">PENTADBIR</p><h3>Analisis Kokurikulum</h3><p class="muted">Ringkasan data untuk pemantauan dan tindakan susulan.</p></div><button id="refreshAnalysisBtn" class="btn ghost">↻ Refresh</button></div><div id="analysisBody" class="analysis-grid"></div></section>
-    </main>
-  </div>
-
-  <dialog id="modal"><div id="modalContent"></div></dialog>
-  <div id="printRoot"></div>
-
-  <script src="config.js"></script>
-  <script src="app.js"></script>
-  <script>
-    if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(console.error));
-  </script>
 </body>
 </html>
